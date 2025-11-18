@@ -1,0 +1,117 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='UTF-8'>
+    <title>Inventory Manager</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h2 { color: #333; }
+        input, select, button { margin: 5px; padding: 8px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #f4f4f4; }
+    </style>
+</head>
+<body>
+    <h2>Inventory Management</h2>
+    <div>
+        <input type='text' id='skuInput' placeholder='Scan or Enter SKU' autofocus>
+        <button onclick='checkSKU()'>Check</button>
+        <button onclick='exportExcel()'>Export to Excel</button>
+    </div>
+    <div id='formContainer' style='margin-top:20px;'></div>
+    <table id='inventoryTable'>
+        <thead>
+            <tr>
+                <th>SKU</th><th>Name</th><th>Description</th><th>Reference</th><th>Producer</th><th>Qty</th><th>Expiry</th><th>Type</th><th>Status</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script src='https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js'></script>
+    <script>
+        let inventory = JSON.parse(localStorage.getItem('inventory') || '[]');
+
+        function saveInventory() {
+            localStorage.setItem('inventory', JSON.stringify(inventory));
+            renderTable();
+        }
+
+        function renderTable() {
+            const tbody = document.querySelector('#inventoryTable tbody');
+            tbody.innerHTML = '';
+            inventory.forEach(item => {
+                const row = `<tr>
+                    <td>${item.sku}</td>
+                    <td>${item.name}</td>
+                    <td>${item.description}</td>
+                    <td>${item.reference}</td>
+                    <td>${item.producer}</td>
+                    <td>${item.qty}</td>
+                    <td>${item.expiry}</td>
+                    <td>${item.type}</td>
+                    <td>${item.status}</td>
+                </tr>`;
+                tbody.innerHTML += row;
+            });
+        }
+
+        function checkSKU() {
+            const sku = document.getElementById('skuInput').value.trim();
+            if (!sku) return;
+            const existing = inventory.find(item => item.sku === sku);
+            const container = document.getElementById('formContainer');
+            if (existing) {
+                container.innerHTML = `<h3>Update Quantity for ${existing.name}</h3>
+                    <p>Current Qty: ${existing.qty}</p>
+                    <input type='number' id='newQty' placeholder='New Quantity'>
+                    <button onclick='updateQty("${sku}")'>Update</button>`;
+            } else {
+                container.innerHTML = `<h3>Add New Product</h3>
+                    <form id='addForm'>
+                        <input type='hidden' name='sku' value='${sku}'>
+                        Name: <input name='name' required><br>
+                        Description: <input name='description' required><br>
+                        Reference: <input name='reference' required><br>
+                        Producer: <input name='producer' required><br>
+                        Quantity: <input name='qty' type='number' required><br>
+                        Expiry: <input name='expiry' type='date' required><br>
+                        Type: <input name='type' required><br>
+                        Status: <input name='status' required><br>
+                        <button type='button' onclick='addProduct()'>Add Product</button>
+                    </form>`;
+            }
+        }
+
+        function updateQty(sku) {
+            const newQty = parseInt(document.getElementById('newQty').value);
+            if (!isNaN(newQty)) {
+                const item = inventory.find(i => i.sku === sku);
+                item.qty = newQty;
+                saveInventory();
+                document.getElementById('formContainer').innerHTML = '';
+            }
+        }
+
+        function addProduct() {
+            const form = document.getElementById('addForm');
+            const data = Object.fromEntries(new FormData(form).entries());
+            data.qty = parseInt(data.qty);
+            inventory.push(data);
+            saveInventory();
+            document.getElementById('formContainer').innerHTML = '';
+        }
+
+        function exportExcel() {
+            const ws = XLSX.utils.json_to_sheet(inventory);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Inventory');
+            XLSX.writeFile(wb, 'inventory_export.xlsx');
+        }
+
+        renderTable();
+    </script>
+</body>
+</html>
