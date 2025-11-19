@@ -64,6 +64,8 @@
             <button onclick="exportJSON()">Export JSON</button>
             <input type="file" id="importFile" style="display:none" accept=".json,.xlsx" onchange="importFile(event)">
             <button onclick="document.getElementById('importFile').click()">Import from file</button>
+            <!-- NEW: Settings button -->
+            <button onclick="openSettings()">Settings</button>
             <button class="icon-btn" onclick="toggleDarkMode()" title="Toggle Dark Mode">☀/☾</button>
         </div>
     </div>
@@ -92,6 +94,39 @@
     <script>
         let inventory = JSON.parse(localStorage.getItem('inventory') || '[]');
         let editIndex = null;
+
+        /* ==== NEW: dynamic consumable types (settings-driven) ==== */
+        const defaultConsumableTypes = [
+            'Tubing',
+            'Dressing',
+            'Sample vial',
+            'Metals',
+            'Syringe',
+            'Needle',
+            'Other'
+        ];
+
+        let consumableTypes = (function () {
+            try {
+                const saved = JSON.parse(localStorage.getItem('consumableTypes') || 'null');
+                if (Array.isArray(saved) && saved.length > 0) return saved;
+            } catch {}
+            return [...defaultConsumableTypes];
+        })();
+
+        function saveConsumableTypes() {
+            localStorage.setItem('consumableTypes', JSON.stringify(consumableTypes));
+        }
+
+        function getTypeOptionsHTML(selectedValue) {
+            let html = '<option value="Select">Select</option>';
+            consumableTypes.forEach(t => {
+                const sel = t === selectedValue ? ' selected' : '';
+                html += `<option${sel}>${t}</option>`;
+            });
+            return html;
+        }
+        /* ========================================================= */
 
         // Theme initialisation: default to dark but respect saved choice
         (function initTheme() {
@@ -258,14 +293,7 @@
                         <div class="form-line"><label>Expiry:</label><input name="expiry" placeholder="YYYY/MM/DD or 0000/00/00" onblur="formatExpiry(this)" required></div>
                         <div class="form-line"><label>Type of consumable:</label>
                             <select name="type" required>
-                                <option value="Select">Select</option>
-                                <option ${existing.type === 'Tubing' ? 'selected' : ''}>Tubing</option>
-                                <option ${existing.type === 'Dressing' ? 'selected' : ''}>Dressing</option>
-                                <option ${existing.type === 'Sample vial' ? 'selected' : ''}>Sample vial</option>
-                                <option ${existing.type === 'Metals' ? 'selected' : ''}>Metals</option>
-                                <option ${existing.type === 'Syringe' ? 'selected' : ''}>Syringe</option>
-                                <option ${existing.type === 'Needle' ? 'selected' : ''}>Needle</option>
-                                <option ${existing.type === 'Other' ? 'selected' : ''}>Other</option>
+                                ${getTypeOptionsHTML(existing.type)}
                             </select>
                         </div>
                         <div class="form-line"><label>Status:</label>
@@ -296,14 +324,7 @@
                         <div class="form-line"><label>Expiry:</label><input name="expiry" placeholder="YYYY/MM/DD or 0000/00/00" onblur="formatExpiry(this)" required></div>
                         <div class="form-line"><label>Type of consumable:</label>
                             <select name="type" required>
-                                <option value="Select">Select</option>
-                                <option value="Tubing">Tubing</option>
-                                <option value="Dressing">Dressing</option>
-                                <option value="Sample vial">Sample vial</option>
-                                <option value="Metals">Metals</option>
-                                <option value="Syringe">Syringe</option>
-                                <option value="Needle">Needle</option>
-                                <option value="Other">Other</option>
+                                ${getTypeOptionsHTML('')}
                             </select>
                         </div>
                         <div class="form-line"><label>Status:</label>
@@ -374,14 +395,7 @@
                     <div class="form-line"><label>Expiry:</label><input name="expiry" value="${item.expiry || ''}" placeholder="YYYY/MM/DD or 0000/00/00" onblur="formatExpiry(this)" required></div>
                     <div class="form-line"><label>Type of consumable:</label>
                         <select name="type" required>
-                            <option value="Select">Select</option>
-                            <option ${item.type === 'Tubing' ? 'selected' : ''}>Tubing</option>
-                            <option ${item.type === 'Dressing' ? 'selected' : ''}>Dressing</option>
-                            <option ${item.type === 'Sample vial' ? 'selected' : ''}>Sample vial</option>
-                            <option ${item.type === 'Metals' ? 'selected' : ''}>Metals</option>
-                            <option ${item.type === 'Syringe' ? 'selected' : ''}>Syringe</option>
-                            <option ${item.type === 'Needle' ? 'selected' : ''}>Needle</option>
-                            <option ${item.type === 'Other' ? 'selected' : ''}>Other</option>
+                            ${getTypeOptionsHTML(item.type)}
                         </select>
                     </div>
                     <div class="form-line"><label>Status:</label>
@@ -478,6 +492,96 @@
             const isDark = document.body.classList.toggle('dark-mode');
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
         }
+
+        /* ===== SETTINGS PANEL: manage consumable types ===== */
+
+        function openSettings() {
+            const container = document.getElementById('formContainer');
+            container.innerHTML = `
+                <h3>Settings – Consumable Types</h3>
+                <p>These values populate the "Type of consumable" dropdown.</p>
+                <div id="typesList"></div>
+                <div class="form-line">
+                    <label>New type:</label>
+                    <input id="newTypeInput" placeholder="e.g. Catheter">
+                    <button type="button" onclick="addType()">Add</button>
+                </div>
+                <button type="button" onclick="closeSettings()">Close</button>
+            `;
+            renderTypesList();
+        }
+
+        function closeSettings() {
+            document.getElementById('formContainer').innerHTML = '';
+            document.getElementById('skuInput').focus();
+        }
+
+        function renderTypesList() {
+            const listDiv = document.getElementById('typesList');
+            if (!listDiv) return;
+            let html = '<ul style="list-style:none;padding:0;margin:0;">';
+            consumableTypes.forEach((t, idx) => {
+                html += `
+                    <li style="margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                        <span style="flex:1;">${t}</span>
+                        <button type="button" class="small-btn" onclick="editType(${idx})">Edit</button>
+                        <button type="button" class="small-btn" onclick="deleteType(${idx})">Delete</button>
+                    </li>
+                `;
+            });
+            html += '</ul>';
+            listDiv.innerHTML = html;
+        }
+
+        function addType() {
+            const input = document.getElementById('newTypeInput');
+            if (!input) return;
+            const val = input.value.trim();
+            if (!val) return;
+            if (consumableTypes.includes(val)) {
+                alert('Type already exists.');
+                return;
+            }
+            consumableTypes.push(val);
+            saveConsumableTypes();
+            renderTypesList();
+            input.value = '';
+        }
+
+        function editType(index) {
+            const oldName = consumableTypes[index];
+            const newName = window.prompt('Edit type name:', oldName);
+            if (newName === null) return;
+            const trimmed = newName.trim();
+            if (!trimmed) return;
+            if (consumableTypes.includes(trimmed) && trimmed !== oldName) {
+                alert('Another type with this name already exists.');
+                return;
+            }
+            consumableTypes[index] = trimmed;
+
+            // Optional global rename: update existing inventory entries using this type
+            inventory.forEach(item => {
+                if (item.type === oldName) {
+                    item.type = trimmed;
+                }
+            });
+
+            saveConsumableTypes();
+            saveInventory();
+            renderTypesList();
+        }
+
+        function deleteType(index) {
+            const name = consumableTypes[index];
+            const confirmed = window.confirm(`Remove type "${name}" from the list? Existing items that already use it will keep their current value.`);
+            if (!confirmed) return;
+            consumableTypes.splice(index, 1);
+            saveConsumableTypes();
+            renderTypesList();
+        }
+
+        /* ==================================================== */
 
         document.getElementById('skuInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
