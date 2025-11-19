@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset='UTF-8'>
+    <meta charset="UTF-8">
     <title>Inventory Manager</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background-color: #fff; color: #000; }
@@ -12,7 +12,19 @@
         .form-line { display: flex; align-items: center; margin-bottom: 10px; }
         .error-msg { color: red; font-size: 12px; margin-left: 10px; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;      /* keep everything one line by default */
+        }
+        /* Cells that are allowed to wrap when text is long */
+        td.wrap-cell {
+            white-space: normal;
+            word-wrap: break-word;
+        }
         th { background-color: #f4f4f4; }
         .dark-mode { background-color: #121212; color: #f4f4f4; }
         .dark-mode table th { background-color: #333; }
@@ -21,60 +33,73 @@
         .right-controls { display: flex; gap: 10px; align-items: center; }
         .icon-btn { background-color: #eee; color: #000; border: 1px solid #ccc; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; }
         .dark-mode .icon-btn { background-color: #444; color: #fff; border: 1px solid #888; }
-        th:nth-child(2), td:nth-child(2) { width: 18%; }
-        th:nth-child(3), td:nth-child(3) { width: 22%; }
-        th:nth-child(4), td:nth-child(4) { width: 10%; }
-        th:nth-child(5), td:nth-child(5) { width: 14%; }
-        th:nth-child(6), td:nth-child(6) { width: auto; }
-        th:nth-child(7), td:nth-child(7) { width: 6%; }
-        th:nth-child(8), td:nth-child(8) { width: 10%; }
-        th:nth-child(9), td:nth-child(9) { width: 10%; }
-        th:nth-child(10), td:nth-child(10) { width: 6%; }
+
+        /* Column widths (10 columns total: SKU, Name, Desc, Ref, Prod, Qty, Expiry, Type, Status, Actions) */
+        th:nth-child(2), td:nth-child(2) { width: 19%; }  /* Name */
+        th:nth-child(3), td:nth-child(3) { width: 23.5%; }  /* Description */
+        th:nth-child(4), td:nth-child(4) { width: 12%; }  /* Reference */
+        th:nth-child(5), td:nth-child(5) { width: 16%; }  /* Producer */
+        th:nth-child(6), td:nth-child(6) { width: 3%; }   /* Qty */
+        th:nth-child(7), td:nth-child(7) { width: 7.5%; }  /* Expiry */
+        th:nth-child(8), td:nth-child(8) { width: 10%; }  /* Type */
+        th:nth-child(9), td:nth-child(9) { width: 5%; }  /* Status */
+        th:nth-child(10), td:nth-child(10) { width: 6%; } /* Actions */
+
         button.small-btn {
-            padding: 6px 10px;      /* makes the button taller */
-            font-size: 12px;        /* slightly larger text */
-            width: 70px;            /* doubled width */
+            padding: 6px 12px;    /*button size */
+            font-size: 12px;      /*button font size */
+            width: 90px;          /*button width size */
         }
     </style>
 </head>
 <body>
     <h1>Inventory Management</h1>
-    <div class='top-bar'>
-        <div class='left-controls'>
-            <input type='text' id='skuInput' placeholder='Scan or Enter SKU' autofocus>
-            <button onclick='checkSKU()'>Check</button>
+    <div class="top-bar">
+        <div class="left-controls">
+            <input type="text" id="skuInput" placeholder="Scan or Enter SKU" autofocus>
+            <button onclick="checkSKU()">Check</button>
         </div>
-        <div class='right-controls'>
-            <button onclick='exportExcel()'>Export Excel</button>
-            <button onclick='exportJSON()'>Export JSON</button>
-            <input type='file' id='importFile' style='display:none' accept='.json,.xlsx' onchange='importFile(event)'>
+        <div class="right-controls">
+            <button onclick="exportExcel()">Export Excel</button>
+            <button onclick="exportJSON()">Export JSON</button>
+            <input type="file" id="importFile" style="display:none" accept=".json,.xlsx" onchange="importFile(event)">
             <button onclick="document.getElementById('importFile').click()">Import from file</button>
-            <button class='icon-btn' onclick='toggleDarkMode()' title='Toggle Dark Mode'>☀/☾</button>
+            <button class="icon-btn" onclick="toggleDarkMode()" title="Toggle Dark Mode">☀/☾</button>
         </div>
     </div>
-    <div id='formContainer' style='margin-top:20px;'></div>
-    <table id='inventoryTable'>
+
+    <div id="formContainer" style="margin-top:20px;"></div>
+
+    <table id="inventoryTable">
         <thead>
             <tr>
-                <th>SKU</th><th>Name</th><th>Description</th><th>Reference</th><th>Producer</th><th>Qty</th><th>Expiry</th><th>Type</th><th>Status</th><th>Actions</th>
+                <th>SKU</th>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Reference</th>
+                <th>Producer</th>
+                <th>Qty</th>
+                <th>Expiry</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody></tbody>
     </table>
 
-    <script src='https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js'></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <script>
         let inventory = JSON.parse(localStorage.getItem('inventory') || '[]');
         let editIndex = null;
-    
-        // THEME INITIALISATION: default to dark, but respect saved choice
+
+        // Theme initialisation: default to dark but respect saved choice
         (function initTheme() {
             const saved = localStorage.getItem('theme');
-    
             if (saved === 'light') {
                 document.body.classList.remove('dark-mode');
             } else {
-                // default to dark if nothing saved or explicitly 'dark'
+                // default dark mode
                 document.body.classList.add('dark-mode');
                 localStorage.setItem('theme', 'dark');
             }
@@ -90,22 +115,41 @@
             tbody.innerHTML = '';
             const sortedInventory = [...inventory].reverse();
             sortedInventory.forEach((item) => {
+                const idx = inventory.indexOf(item);
                 const row = `<tr>
-                    <td>${item.sku}</td>
-                    <td>${item.name}</td>
-                    <td>${item.description}</td>
-                    <td>${item.reference}</td>
-                    <td>${item.producer}</td>
-                    <td>${item.qty}</td>
-                    <td>${item.expiry}</td>
-                    <td>${item.type}</td>
-                    <td>${item.status}</td>
-                    <td><button class='small-btn' onclick='editProduct(${inventory.indexOf(item)})'>Edit</button></td>
+                    <td>${item.sku || ''}</td>
+                    <td class="wrap-target">${item.name || ''}</td>
+                    <td class="wrap-target">${item.description || ''}</td>
+                    <td class="wrap-target">${item.reference || ''}</td>
+                    <td class="wrap-target">${item.producer || ''}</td>
+                    <td>${item.qty != null ? item.qty : ''}</td>
+                    <td>${item.expiry || ''}</td>
+                    <td>${item.type || ''}</td>
+                    <td>${item.status || ''}</td>
+                    <td><button class="small-btn" onclick="editProduct(${idx})">Edit</button></td>
                 </tr>`;
                 tbody.innerHTML += row;
             });
+        
+            applyConditionalWrapping();
         }
 
+        // Only wrap text in cells that are actually long, keep everything else single-line.
+        function applyConditionalWrapping() {
+            const cells = document.querySelectorAll('#inventoryTable td.wrap-target');
+        
+            cells.forEach(cell => {
+                const text = (cell.textContent || '').trim();
+        
+                // Threshold: tweak this number if you want more or less wrapping
+                if (text.length > 30) {
+                    cell.classList.add('wrap-cell');
+                } else {
+                    cell.classList.remove('wrap-cell');
+                }
+            });
+        }
+        
         function formatExpiry(input) {
             let val = input.value.replace(/[^0-9]/g, '');
             if (val.length === 8) {
@@ -113,97 +157,177 @@
             }
         }
 
+        // Expiry validation: YYYY/MM/DD between 2000/01/01 and 2100/01/01, or 0000/00/00
+        function isValidExpiry(val) {
+            val = val.trim();
+            if (val === '0000/00/00') return true;
+
+            const m = /^(\d{4})\/(\d{2})\/(\d{2})$/.exec(val);
+            if (!m) return false;
+
+            const year = parseInt(m[1], 10);
+            const month = parseInt(m[2], 10);
+            const day = parseInt(m[3], 10);
+
+            const date = new Date(year, month - 1, day);
+            if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return false;
+
+            const min = new Date(2000, 0, 1);   // 2000-01-01
+            const max = new Date(2100, 0, 1);   // 2100-01-01
+            if (date < min || date > max) return false;
+
+            return true;
+        }
+
         function validateAndSubmit(type) {
             const form = document.getElementById(type === 'add' ? 'addForm' : 'editForm');
             let valid = true;
+
             form.querySelectorAll('input, select').forEach(field => {
-                if (!field.value.trim() || field.value === 'Select') {
-                    field.style.border = '2px solid red';
-                    valid = false;
+                const value = field.value.trim();
+
+                if (field.name === 'expiry') {
+                    if (!isValidExpiry(value)) {
+                        field.style.border = '2px solid red';
+                        valid = false;
+                    } else {
+                        field.style.border = '';
+                    }
                 } else {
-                    field.style.border = '';
+                    if (!value || value === 'Select') {
+                        field.style.border = '2px solid red';
+                        valid = false;
+                    } else {
+                        field.style.border = '';
+                    }
                 }
             });
+
             if (valid) {
-                type === 'add' ? addProduct() : saveEdit(editIndex);
+                if (type === 'add') {
+                    addProduct();
+                } else {
+                    saveEdit(editIndex);
+                }
             }
         }
 
+        // Focus first "open" field: empty or 'Select', and not readonly.
+        function focusFirstOpenField(formId) {
+            const form = document.getElementById(formId);
+            if (!form) return;
+            const fields = form.querySelectorAll('input, select, textarea');
+
+            // First pass: empty / Select fields
+            for (const field of fields) {
+                if (field.readOnly) continue;
+                const val = (field.value || '').trim();
+                if (!val || val === 'Select') {
+                    field.focus();
+                    return;
+                }
+            }
+            // Fallback: first editable field
+            for (const field of fields) {
+                if (!field.readOnly) {
+                    field.focus();
+                    return;
+                }
+            }
+        }
+
+        // If SKU exists: "Add Another Item" (prefill, new expiry/qty).
+        // If SKU doesn't exist: standard Add New Product.
         function checkSKU() {
             const skuInput = document.getElementById('skuInput');
             const sku = skuInput.value.trim();
             if (!sku) return;
+
             const existing = inventory.find(item => item.sku === sku);
             const container = document.getElementById('formContainer');
+
             if (existing) {
-                container.innerHTML = `<h3>Edit Product</h3>
-                    <form id='editForm'>
-                        <div class='form-line'><label>SKU:</label><input name='sku' value='${existing.sku}' readonly></div>
-                        <div class='form-line'><label>Name:</label><input name='name' value='${existing.name}' required></div>
-                        <div class='form-line'><label>Description:</label><input name='description' value='${existing.description}' required></div>
-                        <div class='form-line'><label>Reference:</label><input name='reference' value='${existing.reference}' required></div>
-                        <div class='form-line'><label>Producer:</label><input name='producer' value='${existing.producer}' required></div>
-                        <div class='form-line'><label>Quantity:</label><input name='qty' type='number' value='${existing.qty}' required></div>
-                        <div class='form-line'><label>Expiry:</label><input name='expiry' value='${existing.expiry}' onblur='formatExpiry(this)' required></div>
-                        <div class='form-line'><label>Type of consumable:</label><select name='type' required>
-                            <option value='Select'>Select</option>
-                            <option ${existing.type==='Tubing'?'selected':''}>Tubing</option>
-                            <option ${existing.type==='Dressing'?'selected':''}>Dressing</option>
-                            <option ${existing.type==='Sample vial'?'selected':''}>Sample vial</option>
-                            <option ${existing.type==='Metals'?'selected':''}>Metals</option>
-                            <option ${existing.type==='Syringe'?'selected':''}>Syringe</option>
-                            <option ${existing.type==='Needle'?'selected':''}>Needle</option>
-                            <option ${existing.type==='Other'?'selected':''}>Other</option>
-                        </select></div>
-                        <div class='form-line'><label>Status:</label><select name='status' required>
-                            <option value='Select'>Select</option>
-                            <option ${existing.status==='Sealed'?'selected':''}>Sealed</option>
-                            <option ${existing.status==='Unsealed'?'selected':''}>Unsealed</option>
-                            <option ${existing.status==='N/A'?'selected':''}>N/A</option>
-                            <option ${existing.status==='Damaged'?'selected':''}>Damaged</option>
-                        </select></div>
-                        <button type='button' onclick='validateAndSubmit("edit")'>Save Changes</button>
-                        <button type='button' onclick='cancelEdit()'>Cancel</button>
+                container.innerHTML = `<h3>Add Another Item</h3>
+                    <form id="addForm">
+                        <div class="form-line"><label>SKU:</label><input name="sku" value="${existing.sku}" readonly></div>
+                        <div class="form-line"><label>Name:</label><input name="name" value="${existing.name || ''}" required></div>
+                        <div class="form-line"><label>Description:</label><input name="description" value="${existing.description || ''}" required></div>
+                        <div class="form-line"><label>Reference:</label><input name="reference" value="${existing.reference || ''}" required></div>
+                        <div class="form-line"><label>Producer:</label><input name="producer" value="${existing.producer || ''}" required></div>
+                        <div class="form-line"><label>Quantity:</label><input name="qty" type="number" min="1" value="${existing.qty != null ? existing.qty : 1}" required></div>
+                        <div class="form-line"><label>Expiry:</label><input name="expiry" placeholder="YYYY/MM/DD or 0000/00/00" onblur="formatExpiry(this)" required></div>
+                        <div class="form-line"><label>Type of consumable:</label>
+                            <select name="type" required>
+                                <option value="Select">Select</option>
+                                <option ${existing.type === 'Tubing' ? 'selected' : ''}>Tubing</option>
+                                <option ${existing.type === 'Dressing' ? 'selected' : ''}>Dressing</option>
+                                <option ${existing.type === 'Sample vial' ? 'selected' : ''}>Sample vial</option>
+                                <option ${existing.type === 'Metals' ? 'selected' : ''}>Metals</option>
+                                <option ${existing.type === 'Syringe' ? 'selected' : ''}>Syringe</option>
+                                <option ${existing.type === 'Needle' ? 'selected' : ''}>Needle</option>
+                                <option ${existing.type === 'Other' ? 'selected' : ''}>Other</option>
+                            </select>
+                        </div>
+                        <div class="form-line"><label>Status:</label>
+                            <select name="status" required>
+                                <option value="Select">Select</option>
+                                <option ${existing.status === 'Sealed' ? 'selected' : ''}>Sealed</option>
+                                <option ${existing.status === 'Unsealed' ? 'selected' : ''}>Unsealed</option>
+                                <option ${existing.status === 'N/A' ? 'selected' : ''}>N/A</option>
+                                <option ${existing.status === 'Damaged' ? 'selected' : ''}>Damaged</option>
+                            </select>
+                        </div>
+                        <button type="button" onclick="validateAndSubmit('add')">Add Item</button>
+                        <button type="button" onclick="cancelEdit()">Cancel</button>
                     </form>`;
-                editIndex = inventory.indexOf(existing);
-                attachEnterListeners('edit');
+
+                attachEnterListeners('add');
+                focusFirstOpenField('addForm');
+
             } else {
                 container.innerHTML = `<h3>Add New Product</h3>
-                    <form id='addForm'>
-                        <div class='form-line'><label>Name:</label><input name='name' required></div>
-                        <div class='form-line'><label>Description:</label><input name='description' required></div>
-                        <div class='form-line'><label>Reference:</label><input name='reference' required></div>
-                        <div class='form-line'><label>Producer:</label><input name='producer' required></div>
-                        <div class='form-line'><label>Quantity:</label><input name='qty' type='number' required></div>
-                        <div class='form-line'><label>Expiry:</label><input name='expiry' placeholder='YYYY/MM/DD' onblur='formatExpiry(this)' required></div>
-                        <div class='form-line'><label>Type of consumable:</label><select name='type' required>
-                            <option value='Select'>Select</option>
-                            <option value='Tubing'>Tubing</option>
-                            <option value='Dressing'>Dressing</option>
-                            <option value='Sample vial'>Sample vial</option>
-                            <option value='Metals'>Metals</option>
-                            <option value='Syringe'>Syringe</option>
-                            <option value='Needle'>Needle</option>
-                            <option value='Other'>Other</option>
-                        </select></div>
-                        <div class='form-line'><label>Status:</label><select name='status' required>
-                            <option value='Select'>Select</option>
-                            <option value='Sealed'>Sealed</option>
-                            <option value='Unsealed'>Unsealed</option>
-                            <option value='N/A'>N/A</option>
-                            <option value='Damaged'>Damaged</option>
-                        </select></div>
-                        <input type='hidden' name='sku' value='${sku}'>
-                        <button type='button' onclick='validateAndSubmit("add")'>Add Product</button>
-                        <button type='button' onclick='cancelEdit()'>Cancel</button>
+                    <form id="addForm">
+                        <div class="form-line"><label>SKU:</label><input name="sku" value="${sku}" readonly></div>
+                        <div class="form-line"><label>Name:</label><input name="name" required></div>
+                        <div class="form-line"><label>Description:</label><input name="description" required></div>
+                        <div class="form-line"><label>Reference:</label><input name="reference" required></div>
+                        <div class="form-line"><label>Producer:</label><input name="producer" required></div>
+                        <div class="form-line"><label>Quantity:</label><input name="qty" type="number" min="1" value="1" required></div>
+                        <div class="form-line"><label>Expiry:</label><input name="expiry" placeholder="YYYY/MM/DD or 0000/00/00" onblur="formatExpiry(this)" required></div>
+                        <div class="form-line"><label>Type of consumable:</label>
+                            <select name="type" required>
+                                <option value="Select">Select</option>
+                                <option value="Tubing">Tubing</option>
+                                <option value="Dressing">Dressing</option>
+                                <option value="Sample vial">Sample vial</option>
+                                <option value="Metals">Metals</option>
+                                <option value="Syringe">Syringe</option>
+                                <option value="Needle">Needle</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-line"><label>Status:</label>
+                            <select name="status" required>
+                                <option value="Select">Select</option>
+                                <option value="Sealed">Sealed</option>
+                                <option value="Unsealed">Unsealed</option>
+                                <option value="N/A">N/A</option>
+                                <option value="Damaged">Damaged</option>
+                            </select>
+                        </div>
+                        <button type="button" onclick="validateAndSubmit('add')">Add Product</button>
+                        <button type="button" onclick="cancelEdit()">Cancel</button>
                     </form>`;
                 attachEnterListeners('add');
+                focusFirstOpenField('addForm');
             }
+
             skuInput.value = '';
         }
 
         function attachEnterListeners(type) {
             const form = document.getElementById(type === 'add' ? 'addForm' : 'editForm');
+            if (!form) return;
             const fields = Array.from(form.querySelectorAll('input, select'));
             fields.forEach((field, idx) => {
                 field.addEventListener('keypress', function(e) {
@@ -224,72 +348,79 @@
             document.getElementById('skuInput').focus();
         }
 
-        function updateExpiry(sku) {
-            const newExpiry = document.getElementById('newExpiry').value.trim();
-            if (newExpiry) {
-                const item = inventory.find(i => i.sku === sku);
-                item.expiry = newExpiry;
-                saveInventory();
-                document.getElementById('formContainer').innerHTML = '';
-                document.getElementById('skuInput').focus();
-            }
-        }
-
         function addProduct() {
             const form = document.getElementById('addForm');
             const data = Object.fromEntries(new FormData(form).entries());
-            data.qty = parseInt(data.qty);
+            data.qty = parseInt(data.qty, 10);
+            if (isNaN(data.qty) || data.qty < 0) data.qty = 0;
             inventory.push(data);
             saveInventory();
             cancelEdit();
         }
 
-        /* --- NEW: Edit button functionality wired up, reusing existing edit form pattern --- */
+        // Edit from table row – for changing product/item details
         function editProduct(index) {
             const item = inventory[index];
             if (!item) return;
             const container = document.getElementById('formContainer');
-            container.innerHTML = `<h3>Edit Product</h3>
-                <form id='editForm'>
-                    <div class='form-line'><label>SKU:</label><input name='sku' value='${item.sku}' readonly></div>
-                    <div class='form-line'><label>Name:</label><input name='name' value='${item.name}' required></div>
-                    <div class='form-line'><label>Description:</label><input name='description' value='${item.description}' required></div>
-                    <div class='form-line'><label>Reference:</label><input name='reference' value='${item.reference}' required></div>
-                    <div class='form-line'><label>Producer:</label><input name='producer' value='${item.producer}' required></div>
-                    <div class='form-line'><label>Quantity:</label><input name='qty' type='number' value='${item.qty}' required></div>
-                    <div class='form-line'><label>Expiry:</label><input name='expiry' value='${item.expiry}' onblur='formatExpiry(this)' required></div>
-                    <div class='form-line'><label>Type of consumable:</label><select name='type' required>
-                        <option value='Select'>Select</option>
-                        <option ${item.type==='Tubing'?'selected':''}>Tubing</option>
-                        <option ${item.type==='Dressing'?'selected':''}>Dressing</option>
-                        <option ${item.type==='Sample vial'?'selected':''}>Sample vial</option>
-                        <option ${item.type==='Metals'?'selected':''}>Metals</option>
-                        <option ${item.type==='Syringe'?'selected':''}>Syringe</option>
-                        <option ${item.type==='Needle'?'selected':''}>Needle</option>
-                        <option ${item.type==='Other'?'selected':''}>Other</option>
-                    </select></div>
-                    <div class='form-line'><label>Status:</label><select name='status' required>
-                        <option value='Select'>Select</option>
-                        <option ${item.status==='Sealed'?'selected':''}>Sealed</option>
-                        <option ${item.status==='Unsealed'?'selected':''}>Unsealed</option>
-                        <option ${item.status==='N/A'?'selected':''}>N/A</option>
-                        <option ${item.status==='Damaged'?'selected':''}>Damaged</option>
-                    </select></div>
-                    <button type='button' onclick='validateAndSubmit("edit")'>Save Changes</button>
-                    <button type='button' onclick='cancelEdit()'>Cancel</button>
+            container.innerHTML = `<h3>Edit Item</h3>
+                <form id="editForm">
+                    <div class="form-line"><label>SKU:</label><input name="sku" value="${item.sku || ''}" readonly></div>
+                    <div class="form-line"><label>Name:</label><input name="name" value="${item.name || ''}" required></div>
+                    <div class="form-line"><label>Description:</label><input name="description" value="${item.description || ''}" required></div>
+                    <div class="form-line"><label>Reference:</label><input name="reference" value="${item.reference || ''}" required></div>
+                    <div class="form-line"><label>Producer:</label><input name="producer" value="${item.producer || ''}" required></div>
+                    <div class="form-line"><label>Quantity:</label><input name="qty" type="number" min="1" value="${item.qty != null ? item.qty : 1}" required></div>
+                    <div class="form-line"><label>Expiry:</label><input name="expiry" value="${item.expiry || ''}" placeholder="YYYY/MM/DD or 0000/00/00" onblur="formatExpiry(this)" required></div>
+                    <div class="form-line"><label>Type of consumable:</label>
+                        <select name="type" required>
+                            <option value="Select">Select</option>
+                            <option ${item.type === 'Tubing' ? 'selected' : ''}>Tubing</option>
+                            <option ${item.type === 'Dressing' ? 'selected' : ''}>Dressing</option>
+                            <option ${item.type === 'Sample vial' ? 'selected' : ''}>Sample vial</option>
+                            <option ${item.type === 'Metals' ? 'selected' : ''}>Metals</option>
+                            <option ${item.type === 'Syringe' ? 'selected' : ''}>Syringe</option>
+                            <option ${item.type === 'Needle' ? 'selected' : ''}>Needle</option>
+                            <option ${item.type === 'Other' ? 'selected' : ''}>Other</option>
+                        </select>
+                    </div>
+                    <div class="form-line"><label>Status:</label>
+                        <select name="status" required>
+                            <option value="Select">Select</option>
+                            <option ${item.status === 'Sealed' ? 'selected' : ''}>Sealed</option>
+                            <option ${item.status === 'Unsealed' ? 'selected' : ''}>Unsealed</option>
+                            <option ${item.status === 'N/A' ? 'selected' : ''}>N/A</option>
+                            <option ${item.status === 'Damaged' ? 'selected' : ''}>Damaged</option>
+                        </select>
+                    </div>
+                    <button type="button" onclick="validateAndSubmit('edit')">Save Changes</button>
+                    <button type="button" onclick="deleteItem(${index})">Delete</button>
+                    <button type="button" onclick="cancelEdit()">Cancel</button>
                 </form>`;
             editIndex = index;
             attachEnterListeners('edit');
+            focusFirstOpenField('editForm');
         }
-        /* --- END NEW CODE --- */
 
         function saveEdit(index) {
             const form = document.getElementById('editForm');
             const data = Object.fromEntries(new FormData(form).entries());
-            data.qty = parseInt(data.qty);
+            data.qty = parseInt(data.qty, 10);
+            if (isNaN(data.qty) || data.qty < 0) data.qty = 0;
             inventory[index] = data;
             saveInventory();
             cancelEdit();
+        }
+
+        function deleteItem(index) {
+            const item = inventory[index];
+            if (!item) return;
+            const confirmed = window.confirm(`Delete item with SKU ${item.sku || ''}?`);
+            if (confirmed) {
+                inventory.splice(index, 1);
+                saveInventory();
+                cancelEdit();
+            }
         }
 
         function exportExcel() {
@@ -313,6 +444,7 @@
             const file = event.target.files[0];
             if (!file) return;
             const reader = new FileReader();
+
             if (file.name.endsWith('.json')) {
                 reader.onload = function(e) {
                     try {
