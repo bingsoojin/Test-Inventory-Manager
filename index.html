@@ -11,8 +11,8 @@
         input, select, button { margin: 5px; padding: 8px; width: 300px; }
         label { display: inline-block; width: 150px; font-weight: bold; }
         .form-line { display: flex; align-items: center; margin-bottom: 10px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         th { background-color: #f4f4f4; }
         .dark-mode { background-color: #121212; color: #f4f4f4; }
         .dark-mode table th { background-color: #333; }
@@ -20,6 +20,11 @@
         .left-controls { display: flex; gap: 10px; }
         .right-controls { display: flex; gap: 10px; align-items: center; }
         .icon-btn { background: none; border: none; cursor: pointer; font-size: 20px; }
+        th:nth-child(2), td:nth-child(2) { width: 18%; } /* Name */
+        th:nth-child(3), td:nth-child(3) { width: 22%; } /* Description */
+        th:nth-child(7), td:nth-child(7) { width: 12%; } /* Expiry */
+        th:nth-child(10), td:nth-child(10) { width: 8%; } /* Actions */
+        button.small-btn { padding: 4px 8px; font-size: 12px; }
     </style>
 </head>
 <body>
@@ -59,7 +64,9 @@
         function renderTable() {
             const tbody = document.querySelector('#inventoryTable tbody');
             tbody.innerHTML = '';
-            inventory.forEach((item, index) => {
+            // Sort newest to oldest (last added first)
+            const sortedInventory = [...inventory].reverse();
+            sortedInventory.forEach((item, index) => {
                 const row = `<tr>
                     <td>${item.sku}</td>
                     <td>${item.name}</td>
@@ -70,7 +77,7 @@
                     <td>${item.expiry}</td>
                     <td>${item.type}</td>
                     <td>${item.status}</td>
-                    <td><button onclick='editProduct(${index})'>Edit</button></td>
+                    <td><button class='small-btn' onclick='editProduct(${inventory.indexOf(item)})'>Edit</button></td>
                 </tr>`;
                 tbody.innerHTML += row;
             });
@@ -96,13 +103,13 @@
                     <button onclick='updateExpiry("${sku}")'>Update</button>`;
                 setTimeout(() => {
                     const expiryField = document.getElementById('newExpiry');
+                    expiryField.focus();
                     expiryField.addEventListener('keypress', function(e) {
                         if (e.key === 'Enter') {
                             e.preventDefault();
                             updateExpiry(sku);
                         }
                     });
-                    expiryField.focus();
                 }, 100);
             } else {
                 const names = [...new Set(inventory.map(i => i.name))];
@@ -122,6 +129,7 @@
                             <option value='Dressing'>Dressing</option>
                             <option value='Sample vial'>Sample vial</option>
                             <option value='Metals'>Metals</option>
+                            <option value='Syringe'>Syringe</option>
                             <option value='Other'>Other</option>
                         </select></div>
                         <div class='form-line'><label>Status:</label><select name='status' id='statusField' required>
@@ -193,6 +201,7 @@
                         <option ${item.type==='Dressing'?'selected':''}>Dressing</option>
                         <option ${item.type==='Sample vial'?'selected':''}>Sample vial</option>
                         <option ${item.type==='Metals'?'selected':''}>Metals</option>
+                        <option ${item.type==='Syringe'?'selected':''}>Syringe</option>
                         <option ${item.type==='Other'?'selected':''}>Other</option>
                     </select></div>
                     <div class='form-line'><label>Status:</label><select name='status' required>
