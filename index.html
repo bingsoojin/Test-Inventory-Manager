@@ -6,9 +6,11 @@
     <title>Inventory Manager</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background-color: #fff; color: #000; }
-        h2 { font-size: 28px; font-weight: bold; color: #000; text-align: center; }
-        .dark-mode h2 { color: #f4f4f4; }
-        input, select, button { margin: 5px; padding: 8px; width: 300px; display: block; }
+        h1 { font-size: 32px; font-weight: bold; color: #000; text-align: center; margin-bottom: 20px; }
+        .dark-mode h1 { color: #f4f4f4; }
+        input, select, button { margin: 5px; padding: 8px; width: 300px; }
+        label { display: inline-block; width: 150px; font-weight: bold; }
+        .form-line { display: flex; align-items: center; margin-bottom: 10px; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
         th { background-color: #f4f4f4; }
@@ -21,6 +23,7 @@
     </style>
 </head>
 <body>
+    <h1>Inventory Management</h1>
     <div class='top-bar'>
         <div class='left-controls'>
             <input type='text' id='skuInput' placeholder='Scan or Enter SKU' autofocus>
@@ -29,12 +32,11 @@
         <div class='right-controls'>
             <button onclick='exportExcel()'>Export Excel</button>
             <button onclick='exportJSON()'>Export JSON</button>
-            <input type='file' id='importFile' style='display:none' accept='.json' onchange='importJSON(event)'>
-            <button onclick="document.getElementById('importFile').click()">Import JSON</button>
-            <button class='icon-btn' onclick='toggleDarkMode()' title='Toggle Dark Mode'>🌞/🌙</button>
+            <input type='file' id='importFile' style='display:none' accept='.json,.xlsx' onchange='importFile(event)'>
+            <button onclick="document.getElementById('importFile').click()">Import from file</button>
+            <button class='icon-btn' onclick='toggleDarkMode()' title='Toggle Dark Mode'>☀/☽</button>
         </div>
     </div>
-    <h2>Inventory Management</h2>
     <div id='formContainer' style='margin-top:20px;'></div>
     <table id='inventoryTable'>
         <thead>
@@ -74,6 +76,13 @@
             });
         }
 
+        function formatExpiry(input) {
+            let val = input.value.replace(/[^0-9]/g, '');
+            if (val.length === 8) {
+                input.value = val.slice(0,4) + '/' + val.slice(4,6) + '/' + val.slice(6);
+            }
+        }
+
         function checkSKU() {
             const skuInput = document.getElementById('skuInput');
             const sku = skuInput.value.trim();
@@ -81,19 +90,19 @@
             const existing = inventory.find(item => item.sku === sku);
             const container = document.getElementById('formContainer');
             if (existing) {
-                container.innerHTML = `<h3>Update Quantity for ${existing.name}</h3>
-                    <p>Current Qty: ${existing.qty}</p>
-                    <input type='number' id='newQty' placeholder='New Quantity'>
-                    <button onclick='updateQty("${sku}")'>Update</button>`;
+                container.innerHTML = `<h3>Update Expiry for ${existing.name}</h3>
+                    <p>Current Expiry: ${existing.expiry || 'None'}</p>
+                    <input type='text' id='newExpiry' placeholder='YYYY/MM/DD' onblur='formatExpiry(this)'>
+                    <button onclick='updateExpiry("${sku}")'>Update</button>`;
                 setTimeout(() => {
-                    const qtyField = document.getElementById('newQty');
-                    qtyField.addEventListener('keypress', function(e) {
+                    const expiryField = document.getElementById('newExpiry');
+                    expiryField.addEventListener('keypress', function(e) {
                         if (e.key === 'Enter') {
                             e.preventDefault();
-                            updateQty(sku);
+                            updateExpiry(sku);
                         }
                     });
-                    qtyField.focus();
+                    expiryField.focus();
                 }, 100);
             } else {
                 const names = [...new Set(inventory.map(i => i.name))];
@@ -102,30 +111,29 @@
 
                 container.innerHTML = `<h3>Add New Product</h3>
                     <form id='addForm'>
-                        <input type='hidden' name='sku' value='${sku}'>
-                        Name: <input name='name' list='nameList' required><datalist id='nameList'>${names.map(n => `<option value='${n}'>`).join('')}</datalist>
-                        Description: <input name='description' list='descList' required><datalist id='descList'>${descriptions.map(d => `<option value='${d}'>`).join('')}</datalist>
-                        Reference: <input name='reference' required>
-                        Producer: <input name='producer' list='prodList' required><datalist id='prodList'>${producers.map(p => `<option value='${p}'>`).join('')}</datalist>
-                        Quantity: <input name='qty' type='number' required>
-                        Expiry: <input name='expiry' placeholder='YYYY-MM-DD' required>
-                        Type of consumable: <select name='type' required>
+                        <div class='form-line'><label>Name:</label><input name='name' list='nameList' required><datalist id='nameList'>${names.map(n => `<option value='${n}'>`).join('')}</datalist></div>
+                        <div class='form-line'><label>Description:</label><input name='description' list='descList' required><datalist id='descList'>${descriptions.map(d => `<option value='${d}'>`).join('')}</datalist></div>
+                        <div class='form-line'><label>Reference:</label><input name='reference' required></div>
+                        <div class='form-line'><label>Producer:</label><input name='producer' list='prodList' required><datalist id='prodList'>${producers.map(p => `<option value='${p}'>`).join('')}</datalist></div>
+                        <div class='form-line'><label>Quantity:</label><input name='qty' type='number' required></div>
+                        <div class='form-line'><label>Expiry:</label><input name='expiry' placeholder='YYYY/MM/DD' onblur='formatExpiry(this)' required></div>
+                        <div class='form-line'><label>Type of consumable:</label><select name='type' required>
                             <option value='Tubing'>Tubing</option>
                             <option value='Dressing'>Dressing</option>
                             <option value='Sample vial'>Sample vial</option>
                             <option value='Metals'>Metals</option>
                             <option value='Other'>Other</option>
-                        </select>
-                        Status: <select name='status' id='statusField' required>
+                        </select></div>
+                        <div class='form-line'><label>Status:</label><select name='status' id='statusField' required>
                             <option value='Sealed'>Sealed</option>
                             <option value='Unsealed'>Unsealed</option>
                             <option value='N/A'>N/A</option>
                             <option value='Damaged'>Damaged</option>
-                        </select>
+                        </select></div>
+                        <input type='hidden' name='sku' value='${sku}'>
                         <button type='button' onclick='addProduct()'>Add Product</button>
                     </form>`;
 
-                // Enter navigation between fields
                 setTimeout(() => {
                     const form = document.getElementById('addForm');
                     const fields = Array.from(form.querySelectorAll('input, select'));
@@ -147,11 +155,11 @@
             skuInput.value = '';
         }
 
-        function updateQty(sku) {
-            const newQty = parseInt(document.getElementById('newQty').value);
-            if (!isNaN(newQty)) {
+        function updateExpiry(sku) {
+            const newExpiry = document.getElementById('newExpiry').value.trim();
+            if (newExpiry) {
                 const item = inventory.find(i => i.sku === sku);
-                item.qty = newQty;
+                item.expiry = newExpiry;
                 saveInventory();
                 document.getElementById('formContainer').innerHTML = '';
                 document.getElementById('skuInput').focus();
@@ -173,26 +181,26 @@
             const container = document.getElementById('formContainer');
             container.innerHTML = `<h3>Edit Product</h3>
                 <form id='editForm'>
-                    SKU: <input name='sku' value='${item.sku}' readonly>
-                    Name: <input name='name' value='${item.name}' required>
-                    Description: <input name='description' value='${item.description}' required>
-                    Reference: <input name='reference' value='${item.reference}' required>
-                    Producer: <input name='producer' value='${item.producer}' required>
-                    Quantity: <input name='qty' type='number' value='${item.qty}' required>
-                    Expiry: <input name='expiry' value='${item.expiry}' required>
-                    Type of consumable: <select name='type' required>
+                    <div class='form-line'><label>SKU:</label><input name='sku' value='${item.sku}' readonly></div>
+                    <div class='form-line'><label>Name:</label><input name='name' value='${item.name}' required></div>
+                    <div class='form-line'><label>Description:</label><input name='description' value='${item.description}' required></div>
+                    <div class='form-line'><label>Reference:</label><input name='reference' value='${item.reference}' required></div>
+                    <div class='form-line'><label>Producer:</label><input name='producer' value='${item.producer}' required></div>
+                    <div class='form-line'><label>Quantity:</label><input name='qty' type='number' value='${item.qty}' required></div>
+                    <div class='form-line'><label>Expiry:</label><input name='expiry' value='${item.expiry}' onblur='formatExpiry(this)' required></div>
+                    <div class='form-line'><label>Type of consumable:</label><select name='type' required>
                         <option ${item.type==='Tubing'?'selected':''}>Tubing</option>
                         <option ${item.type==='Dressing'?'selected':''}>Dressing</option>
                         <option ${item.type==='Sample vial'?'selected':''}>Sample vial</option>
                         <option ${item.type==='Metals'?'selected':''}>Metals</option>
                         <option ${item.type==='Other'?'selected':''}>Other</option>
-                    </select>
-                    Status: <select name='status' required>
+                    </select></div>
+                    <div class='form-line'><label>Status:</label><select name='status' required>
                         <option ${item.status==='Sealed'?'selected':''}>Sealed</option>
                         <option ${item.status==='Unsealed'?'selected':''}>Unsealed</option>
                         <option ${item.status==='N/A'?'selected':''}>N/A</option>
                         <option ${item.status==='Damaged'?'selected':''}>Damaged</option>
-                    </select>
+                    </select></div>
                     <button type='button' onclick='saveEdit(${index})'>Save Changes</button>
                 </form>`;
         }
@@ -224,24 +232,37 @@
             URL.revokeObjectURL(url);
         }
 
-        function importJSON(event) {
+        function importFile(event) {
             const file = event.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    if (Array.isArray(data)) {
-                        inventory = data;
-                        saveInventory();
-                    } else {
-                        alert('Invalid JSON format');
+            if (file.name.endsWith('.json')) {
+                reader.onload = function(e) {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        if (Array.isArray(data)) {
+                            inventory = data;
+                            saveInventory();
+                        } else {
+                            alert('Invalid JSON format');
+                        }
+                    } catch {
+                        alert('Error reading JSON file');
                     }
-                } catch {
-                    alert('Error reading file');
-                }
-            };
-            reader.readAsText(file);
+                };
+                reader.readAsText(file);
+            } else if (file.name.endsWith('.xlsx')) {
+                reader.onload = function(e) {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(sheet);
+                    inventory = jsonData;
+                    saveInventory();
+                };
+                reader.readAsArrayBuffer(file);
+            }
         }
 
         function toggleDarkMode() {
