@@ -5,12 +5,14 @@
     <meta charset='UTF-8'>
     <title>Inventory Manager</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #fff; color: #000; }
         h2 { color: #333; }
         input, select, button { margin: 5px; padding: 8px; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
         th { background-color: #f4f4f4; }
+        .dark-mode { background-color: #121212; color: #f4f4f4; }
+        .dark-mode table th { background-color: #333; }
     </style>
 </head>
 <body>
@@ -19,12 +21,13 @@
         <input type='text' id='skuInput' placeholder='Scan or Enter SKU' autofocus>
         <button onclick='checkSKU()'>Check</button>
         <button onclick='exportExcel()'>Export to Excel</button>
+        <button onclick='toggleDarkMode()'>Toggle Dark Mode</button>
     </div>
     <div id='formContainer' style='margin-top:20px;'></div>
     <table id='inventoryTable'>
         <thead>
             <tr>
-                <th>SKU</th><th>Name</th><th>Description</th><th>Reference</th><th>Producer</th><th>Qty</th><th>Expiry</th><th>Type</th><th>Status</th>
+                <th>SKU</th><th>Name</th><th>Description</th><th>Reference</th><th>Producer</th><th>Qty</th><th>Expiry</th><th>Type</th><th>Status</th><th>Actions</th>
             </tr>
         </thead>
         <tbody></tbody>
@@ -42,7 +45,7 @@
         function renderTable() {
             const tbody = document.querySelector('#inventoryTable tbody');
             tbody.innerHTML = '';
-            inventory.forEach(item => {
+            inventory.forEach((item, index) => {
                 const row = `<tr>
                     <td>${item.sku}</td>
                     <td>${item.name}</td>
@@ -53,6 +56,7 @@
                     <td>${item.expiry}</td>
                     <td>${item.type}</td>
                     <td>${item.status}</td>
+                    <td><button onclick='editProduct(${index})'>Edit</button></td>
                 </tr>`;
                 tbody.innerHTML += row;
             });
@@ -80,9 +84,18 @@
                         Quantity: <input name='qty' type='number' required><br>
                         Expiry: <input name='expiry' type='date' required><br>
                         Type: <input name='type' required><br>
-                        Status: <input name='status' required><br>
+                        Status: <input name='status' required id='statusField'><br>
                         <button type='button' onclick='addProduct()'>Add Product</button>
                     </form>`;
+                // Add Enter key listener for Status field
+                setTimeout(() => {
+                    document.getElementById('statusField').addEventListener('keypress', function(e) {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            addProduct();
+                        }
+                    });
+                }, 100);
             }
             skuInput.value = ''; // Clear input after check
         }
@@ -94,6 +107,7 @@
                 item.qty = newQty;
                 saveInventory();
                 document.getElementById('formContainer').innerHTML = '';
+                document.getElementById('skuInput').focus();
             }
         }
 
@@ -104,6 +118,35 @@
             inventory.push(data);
             saveInventory();
             document.getElementById('formContainer').innerHTML = '';
+            document.getElementById('skuInput').focus();
+        }
+
+        function editProduct(index) {
+            const item = inventory[index];
+            const container = document.getElementById('formContainer');
+            container.innerHTML = `<h3>Edit Product</h3>
+                <form id='editForm'>
+                    SKU: <input name='sku' value='${item.sku}' readonly><br>
+                    Name: <input name='name' value='${item.name}' required><br>
+                    Description: <input name='description' value='${item.description}' required><br>
+                    Reference: <input name='reference' value='${item.reference}' required><br>
+                    Producer: <input name='producer' value='${item.producer}' required><br>
+                    Quantity: <input name='qty' type='number' value='${item.qty}' required><br>
+                    Expiry: <input name='expiry' type='date' value='${item.expiry}' required><br>
+                    Type: <input name='type' value='${item.type}' required><br>
+                    Status: <input name='status' value='${item.status}' required><br>
+                    <button type='button' onclick='saveEdit(${index})'>Save Changes</button>
+                </form>`;
+        }
+
+        function saveEdit(index) {
+            const form = document.getElementById('editForm');
+            const data = Object.fromEntries(new FormData(form).entries());
+            data.qty = parseInt(data.qty);
+            inventory[index] = data;
+            saveInventory();
+            document.getElementById('formContainer').innerHTML = '';
+            document.getElementById('skuInput').focus();
         }
 
         function exportExcel() {
@@ -113,7 +156,11 @@
             XLSX.writeFile(wb, 'inventory_export.xlsx');
         }
 
-        // Add Enter key functionality
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+        }
+
+        // Enter key for SKU input
         document.getElementById('skuInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
