@@ -363,18 +363,54 @@
                 });
             });
         }
+        
+        // Find an existing item where ALL fields (except qty) match
+        function findMatchingItemIndex(data) {
+            const norm = v => (v ?? '').toString().trim();
+        
+            return inventory.findIndex(item =>
+                norm(item.sku)         === norm(data.sku) &&
+                norm(item.name)        === norm(data.name) &&
+                norm(item.description) === norm(data.description) &&
+                norm(item.reference)   === norm(data.reference) &&
+                norm(item.producer)    === norm(data.producer) &&
+                norm(item.expiry)      === norm(data.expiry) &&
+                norm(item.type)        === norm(data.type) &&
+                norm(item.status)      === norm(data.status)
+            );
+        }
 
         function cancelEdit() {
-            document.getElementById('formContainer').innerHTML = '';
-            document.getElementById('skuInput').focus();
+            const container = document.getElementById('formContainer');
+            if (container) {
+                container.innerHTML = '';
+            }
+            const skuInput = document.getElementById('skuInput');
+            if (skuInput) {
+                skuInput.focus();
+            }
         }
 
         function addProduct() {
             const form = document.getElementById('addForm');
             const data = Object.fromEntries(new FormData(form).entries());
+        
+            // Normalise qty from form
             data.qty = parseInt(data.qty, 10);
             if (isNaN(data.qty) || data.qty < 0) data.qty = 0;
-            inventory.push(data);
+        
+            // Check if a fully matching item already exists
+            const matchIndex = findMatchingItemIndex(data);
+        
+            if (matchIndex !== -1) {
+                // Merge: increase qty on existing line
+                const existingQty = parseInt(inventory[matchIndex].qty, 10) || 0;
+                inventory[matchIndex].qty = existingQty + data.qty;
+            } else {
+                // No match: add as a new line
+                inventory.push(data);
+            }
+        
             saveInventory();
             cancelEdit();
         }
